@@ -1,4 +1,4 @@
-# 01. CRUDDA for users and organizations tables in the community database. No connections between the tables in this example. No dynamic table choices with api endpoints.
+# 01. CRUDDA for users and organizations tables in the community database. Tables connected through keys.
 # Make sure to create a community database before.
 
 from flask import Flask, jsonify, request

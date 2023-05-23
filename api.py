@@ -9,24 +9,10 @@ app = Flask(__name__)
 conn = psycopg2.connect("dbname='community' user='postgres' host='localhost' password='Jcmbtber1!'")
 cursor = conn.cursor()
 
+print("\nCreating Tables...\n")
 cursor.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        user_id SERIAL UNIQUE PRIMARY KEY,
-        org_id SERIAL UNIQUE,
-        first_name VARCHAR NOT NULL,
-        last_name VARCHAR,
-        email VARCHAR UNIQUE NOT NULL,
-        phone VARCHAR,
-        city VARCHAR,
-        state VARCHAR (4),
-        active SMALLINT DEFAULT 1
-    );
-""")
-conn.commit()
-
-cursor.execute("""
-    CREATE TABLE IF NOT EXISTS organizations (
-        org_id SERIAL UNIQUE PRIMARY KEY,
+    CREATE TABLE IF NOT EXISTS Organizations (
+        org_id SERIAL PRIMARY KEY,
         org_name VARCHAR NOT NULL,
         phone VARCHAR,
         city VARCHAR,
@@ -35,7 +21,23 @@ cursor.execute("""
         active SMALLINT DEFAULT 1
     );
 """)
+
+cursor.execute("""
+    CREATE TABLE IF NOT EXISTS Users (
+        user_id SERIAL PRIMARY KEY,
+        first_name VARCHAR NOT NULL,
+        last_name VARCHAR,
+        email VARCHAR UNIQUE NOT NULL,
+        phone VARCHAR,
+        city VARCHAR,
+        state VARCHAR (4),
+        active SMALLINT DEFAULT 1,
+        org_id INTEGER REFERENCES Organizations (org_id) 
+    );
+""")
+
 conn.commit()
+print("Finished creating tables")
 
 # Users
 
@@ -52,8 +54,9 @@ def create_user():
     phone = form.get('phone')
     city = form.get('city')
     state = form.get('state')
+    org_id = form.get('org_id')
     active = '1'
-    cursor.execute('INSERT INTO users (first_name, last_name, email, phone, city, state, active) VALUES (%s, %s, %s, %s, %s, %s, %s)', (first_name, last_name, email, phone, city, state, active))
+    cursor.execute('INSERT INTO users (first_name, last_name, email, phone, city, state, active, org_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)', (first_name, last_name, email, phone, city, state, active, org_id))
     conn.commit()
     return jsonify('User added'), 200
 
@@ -67,41 +70,76 @@ def read_users():
         for u in results:
             user_record = {
                 'user_id':u[0],
-                'org_id':u[1],
-                'first_name':u[2],
-                'last_name':u[3],
-                'email':u[4],
-                'phone':u[5],
-                'city':u[6],
-                'state': u[7],
-                'active':u[8]
+                'first_name':u[1],
+                'last_name':u[2],
+                'email':u[3],
+                'phone':u[4],
+                'city':u[5],
+                'state': u[6],
+                'active':u[7],
+                'org_id':u[8],
             }
+            org_id_var = u[8]
+            org_results = cursor.execute("SELECT * FROM organizations WHERE org_id=%s", (str(org_id_var)))
+            org_results = cursor.fetchone()
+
+            if org_results:
+                org_dict = {
+                    'org_id': org_results[0],
+                    'org_name': org_results[1],
+                    'phone': org_results[2],
+                    'city': org_results[3],
+                    'state': org_results[4],
+                    'type': org_results[5],
+                    'active': org_results[6]
+                }
+
+            user_record['organization'] = org_dict
             users.append(user_record)
         return jsonify(users), 200
     
     return 'No users found', 404
 
 @app.route('/read/user/<user_id>')
-
 def read_user(user_id):
     results = cursor.execute("SELECT * FROM users WHERE user_id=%s", (user_id))
     results = cursor.fetchone()
+    results_dict = {}
+
     if results:                      
-        result_dictionary = {
+        result_dict = {
             'user_id':results[0],
-            'org_id':results[1],
-            'first_name': results[2],
-            'last_name': results[3],
-            'email': results[4],
-            'phone': results[5],
-            'city': results[6],
-            'state': results[7],
-            'active': results[8]
+            'first_name': results[1],
+            'last_name': results[2],
+            'email': results[3],
+            'phone': results[4],
+            'city': results[5],
+            'state': results[6],
+            'active': results[7],
+            'org_id': results[8]
         }  
-        return jsonify(result_dictionary), 200
+        org_id_var = results[8]
+        org_results = cursor.execute("SELECT * FROM organizations WHERE org_id=%s", (str(org_id_var)))
+        org_results = cursor.fetchone()
+
+        if org_results:
+            org_dict = {
+                'org_id': org_results[0],
+                'org_name': org_results[1],
+                'phone': org_results[2],
+                'city': org_results[3],
+                'state': org_results[4],
+                'type': org_results[5],
+                'active': org_results[6]
+            }
+
+        result_dict['organization'] = org_dict
+        return jsonify(result_dict), 200
     else:
         return jsonify(f"User {user_id} Not Found")
 
+    
+    
 @app.route('/update/user/<user_id>', methods=['PUT', 'PATCH', 'POST'])
 def update_user(user_id):
     form = request.form

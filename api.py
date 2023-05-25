@@ -18,7 +18,7 @@ cursor.execute("""
         city VARCHAR,
         state VARCHAR (4),
         type VARCHAR,
-        active SMALLINT DEFAULT 1
+        active BOOLEAN DEFAULT true
     );
 """)
 
@@ -31,7 +31,7 @@ cursor.execute("""
         phone VARCHAR,
         city VARCHAR,
         state VARCHAR (4),
-        active SMALLINT DEFAULT 1,
+        active BOOLEAN DEFAULT true
         org_id INTEGER REFERENCES Organizations (org_id) 
     );
 """)
@@ -41,7 +41,7 @@ print("Finished creating tables")
 
 # Users
 
-@app.route('/create/user', methods=['POST'])
+@app.route('/user/add', methods=['POST'])
 def create_user():
     form = request.form
     first_name = form.get('first_name')
@@ -55,12 +55,11 @@ def create_user():
     city = form.get('city')
     state = form.get('state')
     org_id = form.get('org_id')
-    active = '1'
     cursor.execute('INSERT INTO users (first_name, last_name, email, phone, city, state, active, org_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)', (first_name, last_name, email, phone, city, state, active, org_id))
     conn.commit()
     return jsonify('User added'), 200
 
-@app.route('/read/users')
+@app.route('/users/get')
 def read_users():
     cursor.execute("SELECT * FROM users;")
     results = cursor.fetchall()
@@ -100,7 +99,7 @@ def read_users():
     
     return 'No users found', 404
 
-@app.route('/read/user/<user_id>')
+@app.route('/user/get/<user_id>')
 def read_user(user_id):
     results = cursor.execute("SELECT * FROM users WHERE user_id=%s", (user_id))
     results = cursor.fetchone()
@@ -140,7 +139,7 @@ def read_user(user_id):
 
     
     
-@app.route('/update/user/<user_id>', methods=['PUT', 'PATCH', 'POST'])
+@app.route('/user/update/<user_id>', methods=['PUT', 'PATCH', 'POST'])
 def update_user(user_id):
     form = request.form
     if form.get('first_name'):
@@ -161,8 +160,10 @@ def update_user(user_id):
         if form.get('state').isnumeric():
             return jsonify('state must be a two character string')
     if form.get('active'):
-        if 0 > int(form.get('active')) > 1:
-            return jsonify('active must be 0 for inactive or 1 for active') 
+        if str(form.get('active')).lower() == "true" or str(form.get('active')).lower() == "false":
+            pass
+        else:    
+            return jsonify('active must be a boolean true or false'), 400 
 
     if form.get('first_name'):
         cursor.execute("UPDATE users SET first_name=%s WHERE user_id=%s", (form["first_name"], user_id))
@@ -187,7 +188,7 @@ def update_user(user_id):
         conn.commit()   
     return jsonify('All provided fields were updated.')
 
-@app.route('/delete/user/<user_id>', methods=['DELETE'])
+@app.route('/user/delete/<user_id>', methods=['DELETE'])
 def delete_user(user_id):
     cursor.execute("SELECT * FROM users WHERE user_id=%s", (user_id))
     results = cursor.fetchone()
@@ -200,7 +201,7 @@ def delete_user(user_id):
 
     return (f" Team {user_id} Deleted"), 200
 
-@app.route('/deactivate/user/<user_id>', methods=['POST', 'PATCH', 'PUT'])
+@app.route('/user/deactivate/<user_id>', methods=['POST', 'PATCH', 'PUT'])
 def deactivate_user(user_id):
     cursor.execute("SELECT * FROM users WHERE user_id=%s", (user_id))
     results = cursor.fetchone()
@@ -213,7 +214,7 @@ def deactivate_user(user_id):
 
     return(f"Team {user_id} Deactivated"), 200
 
-@app.route('/activate/user/<user_id>', methods=['POST', 'PATCH', 'PUT'])
+@app.route('/user/activate/<user_id>', methods=['POST', 'PATCH', 'PUT'])
 def activate_user(user_id):
     cursor.execute("SELECT * FROM users WHERE user_id=%s", (user_id))
     results = cursor.fetchone()
@@ -228,7 +229,7 @@ def activate_user(user_id):
 
 # Organizations
 
-@app.route('/create/org', methods=['POST'])
+@app.route('org/add', methods=['POST'])
 def create_org():
     form = request.form
     org_name = form.get('org_name')
@@ -243,7 +244,7 @@ def create_org():
     conn.commit()
     return jsonify(f'Organization {org_name} added'), 200
 
-@app.route('/read/orgs')
+@app.route('/orgs/get')
 def read_orgs():
     cursor.execute("SELECT * FROM organizations;")
     results = cursor.fetchall()
@@ -265,7 +266,7 @@ def read_orgs():
     
     return 'No orgs found', 404
 
-@app.route('/read/org/<org_id>')
+@app.route('/org/<org_id>')
 def read_org(org_id):
     results = cursor.execute("SELECT * FROM organizations WHERE org_id=%s", (org_id))
     results = cursor.fetchone()
@@ -283,7 +284,7 @@ def read_org(org_id):
     else:
         return jsonify(f"Org {org_id} Not Found")
 
-@app.route('/update/org/<org_id>', methods=['POST', 'PUT', 'PATCH'])
+@app.route('org/update/<org_id>', methods=['POST', 'PUT', 'PATCH'])
 def update_org(org_id):
     form = request.form
     if form.get('org_name'):
@@ -299,8 +300,10 @@ def update_org(org_id):
         if form.get('type').isnumeric():
             return jsonify('type must be a string')
     if form.get('active'):
-        if 0 > int(form.get('active')) > 1:
-            return jsonify('active must be 0 for inactive or 1 for active') 
+        if str(form.get('active')).lower() == "true" or str(form.get('active')).lower() == "false":
+            pass
+        else:    
+            return jsonify('active must be a boolean true or false'), 400 
 
     if form.get('org_name'):
         cursor.execute("UPDATE organizations SET org_name=%s WHERE org_id=%s", (form["org_name"], org_id))
@@ -322,7 +325,7 @@ def update_org(org_id):
         conn.commit()   
     return jsonify('All provided fields were updated for Organization {org_id}.')
 
-@app.route('/delete/org/<org_id>', methods=['DELETE'])
+@app.route('/org/delete/<org_id>', methods=['DELETE'])
 def delete_org(org_id):
     cursor.execute("SELECT * FROM organizations WHERE org_id=%s", (org_id))
     results = cursor.fetchone()
@@ -335,7 +338,7 @@ def delete_org(org_id):
 
     return (f"Organization {org_id} Deleted"), 200
 
-@app.route('/deactivate/org/<org_id>', methods=['POST', 'PUT', 'PATCH'])
+@app.route('/org/deactivate/<org_id>', methods=['POST', 'PUT', 'PATCH'])
 def deactivate_org(org_id):
     cursor.execute("SELECT * FROM organizations WHERE org_id=%s", (org_id))
     results = cursor.fetchone()
@@ -343,12 +346,12 @@ def deactivate_org(org_id):
     if not results:
         return (f"Organization {org_id} not found."), 404
     
-    cursor.execute("UPDATE organizations SET active=0 WHERE org_id=%s;", (org_id))
+    cursor.execute("UPDATE organizations SET active=false WHERE org_id=%s;", (org_id))
     conn.commit()
 
     return(f"Organization {org_id} Deactivated"), 200
 
-@app.route('/activate/org/<org_id>', methods=['POST', 'PUT', 'PATCH'])
+@app.route('/org/activate/<org_id>', methods=['POST', 'PUT', 'PATCH'])
 def activate_org(org_id):
     cursor.execute("SELECT * FROM organizations WHERE org_id=%s", (org_id))
     results = cursor.fetchone()
@@ -356,7 +359,7 @@ def activate_org(org_id):
     if not results:
         return (f"Organizations {org_id} not found."), 404
     
-    cursor.execute("UPDATE organizations SET active=1 WHERE org_id=%s;", (org_id))
+    cursor.execute("UPDATE organizations SET active=true WHERE org_id=%s;", (org_id))
     conn.commit()
 
     return(f"Team {org_id} Activated"), 200
